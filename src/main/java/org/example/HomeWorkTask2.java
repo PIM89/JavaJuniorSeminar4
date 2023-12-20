@@ -2,27 +2,18 @@ package org.example;
 
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.query.Query;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 public class HomeWorkTask2 {
     public static void main(String[] args) {
-        // 2.2 Создать Session и сохранить в таблицу 10 книг
-        SessionFactory sessionFactory = new Configuration().configure("hibernate.cfg.xml").buildSessionFactory();
-        createTenBook(sessionFactory);
-
-        // 2.3 Выгрузить список книг какого-то автора
-        reqByAuthor(sessionFactory, "Михаил Булгаков");
-    }
-
-    public static void createTenBook(SessionFactory sessionFactory) {
         Map<String, String> books = new HashMap<>();
         books.put("Прислуга", "Кэтрин Стокетт");
         books.put("Возвращение государя", "Джон Р. Р. Толкиен");
@@ -34,13 +25,29 @@ public class HomeWorkTask2 {
         books.put("Безумный корабль", "Робин Хобб");
         books.put("Цветы для Элджернона", "Дэниел Киз");
         books.put("Записки юного врача", "Михаил Булгаков");
+
+        // 2.2 Создать Session и сохранить в таблицу 10 книг
+        SessionFactory sessionFactory = new Configuration().configure("hibernate.cfg.xml").buildSessionFactory();
+        createTenBook(sessionFactory, books);
+
+        // 2.3 Выгрузить список книг какого-то автора
+        reqByAuthor(sessionFactory, "Михаил Булгаков");
+    }
+
+    public static void createTenBook(SessionFactory sessionFactory, Map<String, String> books) {
+
         System.out.println("Добавление информации о книгах в БД...");
         try (Session session = sessionFactory.openSession()) {
             session.beginTransaction();
+
             for (Map.Entry<String, String> entry : books.entrySet()) {
+                Author author = new Author(entry.getValue());
+
                 Book book = new Book();
                 book.setName(entry.getKey());
-                book.setAuthor(entry.getValue());
+                book.setAuthor(author);
+
+                session.persist(author);
                 session.persist(book);
                 session.flush();
             }
@@ -48,14 +55,11 @@ public class HomeWorkTask2 {
         }
     }
 
-    public static void reqByAuthor(SessionFactory sessionFactory, String author) {
+    public static void reqByAuthor(SessionFactory sessionFactory, String authorName) {
         try (Session session = sessionFactory.openSession()) {
-            String sql = "select b from Book b where author = " + "'" + author + "'";
+            String sql = "SELECT b FROM Book b WHERE author.name = " + "'" + authorName + "'";
             Query<Book> query = session.createQuery(sql, Book.class);
-            List resultList = query.getResultList();
-            for (Object o : resultList) {
-                System.out.println(o);
-            }
+            query.stream().forEach(System.out::println);
         }
     }
 }
@@ -63,47 +67,53 @@ public class HomeWorkTask2 {
 // 2.1 Описать сущность Book
 @Entity
 @Table(name = "book")
+@Getter
+@Setter
 class Book {
     @Id
     @Column(name = "id")
-    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
-    @Column(name = "author")
-    private String author;
     @Column(name = "name")
     private String name;
-
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getAuthor() {
-        return author;
-    }
-
-    public void setAuthor(String author) {
-        this.author = author;
-    }
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name="id")
+    private Author author;
 
     @Override
     public String toString() {
         return "Book{" +
                 "id=" + id +
-                ", author='" + author + '\'' +
                 ", name='" + name + '\'' +
+                ", author=" + author +
                 '}';
     }
 }
 
+@Entity
+@Table(name = "author")
+@Getter
+@Setter
+class Author {
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @JoinColumn (name="id")
+    private Long id;
+    @Column(name = "name")
+    private String name;
+
+    public Author() {
+    }
+
+    public Author(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public String toString() {
+        return "Author{" +
+                "authorID=" + id +
+                ", name='" + name + '\'' +
+                '}';
+    }
+}
